@@ -4,82 +4,14 @@ using System.IO;
 
 class Program
 {
-    List<Task> toDoList = new List<Task>();
-
-    /// <summary>
-    /// Сохранение списка задач в текстовый файл
-    /// </summary>
-    static void SaveListToTxt(List<Task> toDoList, string filePath)
-    {
-        using (var writer = new StreamWriter(filePath))
-        {
-            foreach (var task in toDoList)
-            {
-                writer.WriteLine($"{task.Id},{task.Name},{task.IsCompleted}");
-            }
-        }
-    }
-
-    /// <summary>
-    /// Сохранение списка задач в бинарный файл
-    /// </summary>
-    static void SaveListToDat(List<Task> toDoList, string filePath)
-    {
-        using (var writer = new BinaryWriter(File.Open(filePath, FileMode.Create)))
-        {
-            foreach (var task in toDoList)
-            {
-                writer.Write(task.Name);
-                writer.Write(task.IsCompleted);
-            }
-        }
-    }
-
-    /// <summary>
-    /// Загрузка списка задач из текстового файла
-    /// </summary>
-    static List<Task> ReadListFromTxt(string filePath)
-    {
-        var result = new List<Task>();
-        using (var reader = new StreamReader(filePath))
-        {
-            string line;
-            while ((line = reader.ReadLine()) != null)
-            {
-                var parts = line.Split(',');
-                if (parts.Length == 3 && int.TryParse(parts[0], out int Id))
-                {
-                    result.Add(new Task { Id = Id, Name = parts[1], IsCompleted = bool.Parse(parts[2]) });
-                }
-            }
-        }
-        return result;
-    }
-
-    /// <summary>
-    /// Загрузка списка задач из бинарного файла
-    /// </summary>
-    static List<Task> ReadListFromDat(string filePath)
-    {
-        var result = new List<Task>();
-        using (var reader = new BinaryReader(File.Open(filePath, FileMode.Open)))
-        {
-            while (reader.BaseStream.Position < reader.BaseStream.Length)
-            {
-                result.Add(new Task { Name = reader.ReadString(), IsCompleted = false });
-            }
-        }
-        return result;
-    }
-
     /// <summary>
     /// Основное меню
     /// </summary>
     static void Main(string[] args)
     {
-        Program program = new Program();
         var presenter = new ToDoListPresenter();
-        presenter.toDoList = ReadListFromTxt("data.txt");
+        var fileHelper = new fileRWHelper();
+        presenter.toDoList = fileHelper.ReadListFromTxt("data.txt");
         while (true)
         {
             Console.Clear();
@@ -107,7 +39,11 @@ class Program
                     Console.Clear();
                     Console.WriteLine("Введите ID задачи для завершения: ");
                     int taskID = int.Parse(Console.ReadLine());
-                    presenter.CompleteTask(taskID);
+                    if (presenter.CompleteTask(taskID) == 0)
+                    {
+                        Console.WriteLine("Задача выполнена!");
+                    }
+                    else Console.WriteLine("Задачи с указанным ID не существует.");
                     Console.WriteLine("\nНажмите любую клавишу для продолжения...");
                     Console.ReadKey();
                     break;
@@ -115,14 +51,61 @@ class Program
                     Console.Clear();
                     Console.WriteLine("Введите ID задачи, которую нужно удалить: ");
                     taskID = int.Parse(Console.ReadLine());
-                    presenter.DeleteTask(taskID);
+                    if (presenter.DeleteTask(taskID) == 0)
+                    {
+                        Console.WriteLine("Задача удалена!");
+                    }
+                    else Console.WriteLine("Задачи с указанным ID не существует.");
                     presenter.ResN();
                     Console.WriteLine("\nНажмите любую клавишу для продолжения...");
                     Console.ReadKey();
                     break;
                 case 4:
                     presenter.ResN();
-                    presenter.OutputInfo();
+                    while (true)
+                    {
+                        Console.Clear();
+                        Console.WriteLine("Какие задачи вы хотите посмотреть?");
+                        Console.WriteLine("1. Вывести все задачи");
+                        Console.WriteLine("2. Вывести только выполненные задачи");
+                        Console.WriteLine("3. Вывести только невыполненные задачи");
+                        Console.WriteLine("4. Выход");
+                        int choice1 = int.Parse(Console.ReadLine());
+                        switch (choice1)
+                        {
+                            case 1:
+                                Console.Clear();
+                                Console.WriteLine("Ваши задачи: ");
+                                presenter.OutputInfo();
+                                Console.WriteLine("\nНажмите любую клавишу для продолжения...");
+                                Console.ReadKey();
+                                break;
+                            case 2:
+                                Console.Clear();
+                                Console.WriteLine("Выполненные задачи: ");
+                                presenter.ComletedOnly();
+                                Console.WriteLine("\nНажмите любую клавишу для продолжения...");
+                                Console.ReadKey();
+                                break;
+                            case 3:
+                                Console.Clear();
+                                Console.WriteLine("Невыполненные задачи: ");
+                                presenter.NotComletedOnly();
+                                Console.WriteLine("\nНажмите любую клавишу для продолжения...");
+                                Console.ReadKey();
+                                break;
+                            case 4:
+                                break;
+                            default:
+                                Console.WriteLine("Неверный выбор. Попробуйте снова...");
+                                Console.ReadKey();
+                                break;
+                        }
+                        if(choice1 == 4)
+                        {
+                            break;
+                        }
+                    }
                     Console.WriteLine("\nНажмите любую клавишу для продолжения...");
                     Console.ReadKey(); 
                     break;
@@ -132,12 +115,12 @@ class Program
                     string filePath = Console.ReadLine();
                     if (filePath.EndsWith(".txt"))
                     {
-                        Program.SaveListToTxt(presenter.toDoList, filePath);
+                        fileHelper.SaveListToTxt(presenter.toDoList, filePath);
                         Console.WriteLine("Список сохранён в текстовый файл. ");
                     }
                     else if (filePath.EndsWith(".dat"))
                     {
-                        Program.SaveListToDat(presenter.toDoList, filePath);
+                        fileHelper.SaveListToDat(presenter.toDoList, filePath);
                         Console.WriteLine("Список сохранён в бинарный файл. ");
                     }
                     else
@@ -152,12 +135,12 @@ class Program
                     string filePathIn = Console.ReadLine();
                     if (filePathIn.EndsWith(".txt"))
                     {
-                        presenter.toDoList = ReadListFromTxt(filePathIn);
+                        presenter.toDoList = fileHelper.ReadListFromTxt(filePathIn);
                         Console.WriteLine("Список загружен из текстового файла. ");
                     }
                     else if (filePathIn.EndsWith(".dat"))
                     {
-                        presenter.toDoList = ReadListFromDat(filePathIn);
+                        presenter.toDoList = fileHelper.ReadListFromDat(filePathIn);
                         Console.WriteLine("Список загружен из бинарного файла. ");
                     }
                     else
@@ -169,7 +152,7 @@ class Program
                     break;
                 case 7:
                     Console.Clear();
-                    Program.SaveListToTxt(presenter.toDoList, "data.txt");
+                    fileHelper.SaveListToTxt(presenter.toDoList, "data.txt");
                     Console.WriteLine("Программа завершила свою работу. Введённые данные были сохранены в стд. файл data.txt");
                     return; // Выход из цикла
                 default:

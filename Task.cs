@@ -16,8 +16,4 @@
     {
         IsCompleted = false;
     }
-    public string OutputList()
-    {
-        return $"{Id}. {Name} [{(IsCompleted ? "Completed" : "Not completed")}]";
-    }
 }
